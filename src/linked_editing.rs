@@ -219,6 +219,7 @@ fn span_in_region(
     span_offset: u32,
     symbol_map: &SymbolMap,
     var_name: &str,
+    all_regions: &[Region],
 ) -> bool {
     // Case 1: the span is the definition token of this region.
     if span_offset == region.def_offset {
@@ -236,8 +237,16 @@ fn span_in_region(
             // Compound assignments (+=, -=, .=, etc.) modify in place
             // and belong to the current region.
             Some(VarDefKind::CompoundAssignment) => return true,
-            // Any other definition kind starts its own region.
-            Some(_) => {}
+            // If this definition starts its own region, it doesn't
+            // belong here. But if it was skipped by build_regions
+            // (e.g. a deeper-nested conditional assignment), it
+            // belongs to the enclosing region.
+            Some(_) => {
+                let starts_own_region = all_regions.iter().any(|r| r.def_offset == span_offset);
+                if !starts_own_region {
+                    return true;
+                }
+            }
         }
     }
 
@@ -295,7 +304,7 @@ fn collect_variable_ranges_in_region(
             if span_scope != scope_start {
                 continue;
             }
-            if !span_in_region(region, span.start, symbol_map, var_name) {
+            if !span_in_region(region, span.start, symbol_map, var_name, &regions) {
                 continue;
             }
             if !seen_offsets.insert(span.start) {
@@ -324,6 +333,109 @@ fn collect_variable_ranges_in_region(
                 def.offset as usize,
                 end_offset as usize,
             ));
+        }
+    }
+
+    // ── Closure use() capture bridging ──────────────────────────────────
+    //
+    // When a variable is captured via `use ($var)`, renaming it must
+    // propagate across both the outer scope (where the variable is
+    // defined) and the inner closure scope (where it is used).  The
+    // `use ($var)` token sits physically in the outer scope but has a
+    // `ClosureCapture` VarDefSite scoped to the closure body.
+    //
+    // Case A (cursor in outer scope): find ClosureCapture defs whose
+    // offset falls within this region, then include all occurrences of
+    // the variable inside each captured closure.
+    //
+    // Case B (cursor in closure scope): if the region's definition is
+    // a ClosureCapture, bridge outward to the outer scope's region and
+    // include those occurrences too.
+
+    // Case A: outer scope → closure bodies
+    for def in &symbol_map.var_defs {
+        if def.name == var_name
+            && def.kind == VarDefKind::ClosureCapture
+            && span_in_region(region, def.offset, symbol_map, var_name, &regions)
+        {
+            // The use() token itself (in outer scope) is already collected
+            // above.  Now collect all occurrences inside the closure body.
+            let closure_scope = def.scope_start;
+            for span in &symbol_map.spans {
+                if let SymbolKind::Variable { name } = &span.kind {
+                    if name != var_name {
+                        continue;
+                    }
+                    let ss = symbol_map.find_variable_scope(name, span.start);
+                    if ss != closure_scope {
+                        continue;
+                    }
+                    if !seen_offsets.insert(span.start) {
+                        continue;
+                    }
+                    ranges.push(variable_range_without_sigil(
+                        content,
+                        span.start as usize,
+                        span.end as usize,
+                    ));
+                }
+            }
+        }
+    }
+
+    // Case B: closure scope → outer scope
+    // Check if the current region's definition is a ClosureCapture.
+    if let Some(capture_def) = symbol_map.var_defs.iter().find(|d| {
+        d.name == var_name
+            && d.kind == VarDefKind::ClosureCapture
+            && d.offset == region.def_offset
+            && d.scope_start == scope_start
+    }) {
+        // The use() token sits in the outer scope.  Find which outer
+        // region it belongs to and include all outer occurrences.
+        let outer_scope = symbol_map.find_enclosing_scope(capture_def.offset);
+        let outer_regions = build_regions(symbol_map, var_name, outer_scope);
+        if let Some(outer_region) = outer_regions.iter().find(|r| {
+            capture_def.offset >= r.effective_from && capture_def.offset < r.reads_until
+                || capture_def.offset == r.def_offset
+        }) {
+            for span in &symbol_map.spans {
+                if let SymbolKind::Variable { name } = &span.kind {
+                    if name != var_name {
+                        continue;
+                    }
+                    let ss = symbol_map.find_variable_scope(name, span.start);
+                    if ss != outer_scope {
+                        continue;
+                    }
+                    if !span_in_region(
+                        outer_region,
+                        span.start,
+                        symbol_map,
+                        var_name,
+                        &outer_regions,
+                    ) {
+                        continue;
+                    }
+                    if !seen_offsets.insert(span.start) {
+                        continue;
+                    }
+                    ranges.push(variable_range_without_sigil(
+                        content,
+                        span.start as usize,
+                        span.end as usize,
+                    ));
+                }
+            }
+            // Also include the outer region's def site if not yet seen.
+            if seen_offsets.insert(outer_region.def_offset) {
+                let end_offset = outer_region.def_offset + 1 + var_name.len() as u32;
+                ranges.push(variable_range_without_sigil(
+                    content,
+                    outer_region.def_offset as usize,
+                    end_offset as usize,
+                ));
+            }
         }
     }
 

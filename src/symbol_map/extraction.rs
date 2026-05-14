@@ -436,9 +436,12 @@ fn extract_from_statement<'a>(
         }
         Statement::Try(try_stmt) => {
             emit_keyword(&try_stmt.r#try, ctx);
+            let try_block_end = try_stmt.block.span().end.offset;
+            push_cond_nesting(ctx, try_block_end);
             for s in try_stmt.block.statements.iter() {
                 extract_from_statement(s, ctx, scope_start);
             }
+            pop_cond_nesting(ctx);
             for catch in try_stmt.catch_clauses.iter() {
                 emit_keyword(&catch.r#catch, ctx);
                 // Catch type hint is a navigable class reference.

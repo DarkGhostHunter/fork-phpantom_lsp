@@ -568,3 +568,116 @@ function demo() {
     // `$abc` in `echo $abc` starts at col 9, so `abc` is col 10..13.
     assert_range(&ranges[1], 3, 10, 13);
 }
+
+#[test]
+fn linked_editing_conditional_reassignment_belongs_to_outer_region() {
+    let backend = create_test_backend();
+    let php = r#"<?php
+function test(bool $bool): void {
+    $a = 'a';
+    $a .= 'a';
+    $a = $a . 'b';
+    if ($bool) {
+        $a = 'b';
+    }
+    echo $a;
+}
+"#;
+
+    // Cursor on `echo $a` (line 8, col 10) — region 2 starts at `$a = $a . 'b'`
+    // and should include the conditional `$a = 'b'` inside the if and `echo $a`.
+    let result = linked_editing_at(&backend, "file:///test.php", php, 8, 10);
+    let ranges = result.expect("expected linked editing ranges").ranges;
+    // Region 2: `$a` on line 4 (LHS of `$a = $a . 'b'`), `$a` on line 6
+    // (inside if), `$a` on line 8 (echo)
+    assert_eq!(
+        ranges.len(),
+        3,
+        "should include LHS assignment, conditional reassignment, and echo"
+    );
+    assert_range(&ranges[0], 4, 5, 6); // $a = $a . 'b' (LHS)
+    assert_range(&ranges[1], 6, 9, 10); // $a = 'b' inside if
+    assert_range(&ranges[2], 8, 10, 11); // echo $a
+}
+
+#[test]
+fn linked_editing_try_catch_reassignment_same_region() {
+    let backend = create_test_backend();
+    let php = r#"<?php
+function test(): void {
+    $conn = null;
+    try {
+        $conn = 'connected';
+    } catch (\Exception $e) {
+        $conn = 'failed';
+    }
+    echo $conn;
+}
+"#;
+
+    // Cursor on `echo $conn` (line 8) — all $conn should be one region
+    let result = linked_editing_at(&backend, "file:///test.php", php, 8, 10);
+    let ranges = result.expect("expected linked editing ranges").ranges;
+    assert_eq!(
+        ranges.len(),
+        4,
+        "should include initial assignment, try, catch, and echo: got {:?}",
+        ranges
+    );
+}
+
+#[test]
+fn linked_editing_closure_use_capture_links_across_scopes() {
+    let backend = create_test_backend();
+    let php = r#"<?php
+function demo(): void {
+    $name = 'world';
+    $fn = function () use ($name) {
+        echo $name;
+    };
+    echo $name;
+}
+"#;
+
+    // All 4 occurrences of $name should link: the outer assignment,
+    // the use() capture, the inner echo, and the outer echo.
+    // Cursor on `$name` inside the closure body (line 4)
+    let result = linked_editing_at(&backend, "file:///test.php", php, 4, 14);
+    let ranges = result.expect("inner $name should bridge to outer").ranges;
+    assert_eq!(
+        ranges.len(),
+        4,
+        "expected all 4 occurrences linked: got {:?}",
+        ranges
+    );
+
+    // Cursor on `$name` in the use() clause (line 3)
+    let result = linked_editing_at(&backend, "file:///test.php", php, 3, 29);
+    let ranges = result.expect("use($name) should link all").ranges;
+    assert_eq!(
+        ranges.len(),
+        4,
+        "expected all 4 occurrences from use() cursor: got {:?}",
+        ranges
+    );
+
+    // Cursor on outer `$name` (line 2, assignment)
+    let result = linked_editing_at(&backend, "file:///test.php", php, 2, 5);
+    let ranges = result.expect("outer $name should bridge to closure").ranges;
+    assert_eq!(
+        ranges.len(),
+        4,
+        "expected all 4 occurrences from outer cursor: got {:?}",
+        ranges
+    );
+
+    // Cursor on outer `echo $name` (line 6)
+    let result = linked_editing_at(&backend, "file:///test.php", php, 6, 10);
+    let ranges = result.expect("outer echo $name should link all").ranges;
+    assert_eq!(
+        ranges.len(),
+        4,
+        "expected all 4 occurrences from outer echo: got {:?}",
+        ranges
+    );
+}
