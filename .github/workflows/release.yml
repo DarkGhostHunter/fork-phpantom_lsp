@@ -49,6 +49,20 @@ jobs:
             macos_sign: true
             cpu_version: x86-64-v2
             rustflags: "-C target-cpu=x86-64-v2"
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+            macos_sign: true
+            cpu_version: x86-64-v3
+            suffix: modern
+            rustflags: "-C target-cpu=x86-64-v3"
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+            macos_sign: true
+            cpu_version: x86-64-v4
+            suffix: avx512
+            rustflags: "-C target-cpu=x86-64-v4"
 
           # --- macOS ARM ---
           - target: aarch64-apple-darwin
