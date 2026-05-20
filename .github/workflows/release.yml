@@ -111,19 +111,27 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
+          # Write the .p12 to disk
           echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          
+          # Create a temporary keychain so we don't touch the login keychain
           security create-keychain -p actions-keychain phpantom.keychain
           security set-keychain-settings -lut 21600 phpantom.keychain
           security unlock-keychain -p actions-keychain phpantom.keychain
+
+          # Import the certificate + private key
           security import certificate.p12 \
             -k phpantom.keychain \
             -P "$APPLE_CERTIFICATE_PASSWORD" \
             -T /usr/bin/codesign
           security list-keychain -d user -s phpantom.keychain
+
+          # Allow codesign to use the key without a UI prompt
           security set-key-partition-list \
             -S apple-tool:,apple: \
             -k actions-keychain \
             phpantom.keychain
+          
           rm certificate.p12
 
       - name: Sign binary (macOS)
@@ -146,6 +154,7 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          # Zip just for submission — notarytool requires an archive
           ditto -c -k --keepParent \
             target/${{ matrix.target }}/release/phpantom_lsp \
             phpantom_lsp-notarize.zip
