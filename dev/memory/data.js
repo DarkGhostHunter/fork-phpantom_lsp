@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779319561925,
+  "lastUpdate": 1779320476944,
   "repoUrl": "https://github.com/DarkGhostHunter/fork-phpantom_lsp",
   "entries": {
     "PHPantom Memory Usage": [
@@ -33,6 +33,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory_laravel_model",
             "value": 48.1,
+            "unit": "MiB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "DarkGhostHunter@Gmail.com",
+            "name": "Italo",
+            "username": "DarkGhostHunter"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5dae22b8afb584894360e9cf7ea1a5dbbcd5d4d7",
+          "message": "Adds friendly name to release",
+          "timestamp": "2026-05-20T19:28:25-04:00",
+          "tree_id": "4dfd67535f8bac420ed97d6f122e9621cbc81179",
+          "url": "https://github.com/DarkGhostHunter/fork-phpantom_lsp/commit/5dae22b8afb584894360e9cf7ea1a5dbbcd5d4d7"
+        },
+        "date": 1779320476508,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "memory_hello_world",
+            "value": 32.7,
+            "unit": "MiB"
+          },
+          {
+            "name": "memory_laravel_model",
+            "value": 53.1,
             "unit": "MiB"
           }
         ]
