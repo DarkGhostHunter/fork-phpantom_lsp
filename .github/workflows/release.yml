@@ -28,13 +28,13 @@ jobs:
             os: ubuntu-latest
             archive: tar.gz
             cpu_version: x86-64-v3
-            name: modern
+            suffix: modern
             rustflags: "-C target-cpu=x86-64-v3"
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             archive: tar.gz
             cpu_version: x86-64-v4
-            name: avx512
+            suffix: avx512
             rustflags: "-C target-cpu=x86-64-v4"
 
           # --- Linux ARM ---
@@ -66,13 +66,13 @@ jobs:
             os: windows-latest
             archive: zip
             cpu_version: x86-64-v3
-            name: modern
+            suffix: modern
             rustflags: "-C target-cpu=x86-64-v3"
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             archive: zip
             cpu_version: x86-64-v4
-            name: avx512
+            suffix: avx512
             rustflags: "-C target-cpu=x86-64-v4"
 
           # --- Windows ARM ---
@@ -182,7 +182,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           # Appends the cpu_version (e.g., -x86-64-v3) to the archive name if it exists
-          SUFFIX="${{ matrix.name && format('-{0}', matrix.name) || '' }}"
+          SUFFIX="${{ matrix.suffix && format('-{0}', matrix.suffix) || '' }}"
           tar czf ../../../phpantom_lsp-${{ matrix.target }}${SUFFIX}.tar.gz phpantom_lsp
           cd ../../..
 
@@ -190,7 +190,7 @@ jobs:
         if: matrix.archive == 'zip'
         shell: pwsh
         run: |
-          $suffix = "${{ matrix.name }}" ? "-${{ matrix.name }}" : ""
+          $suffix = "${{ matrix.suffix }}" ? "-${{ matrix.suffix }}" : ""
           Compress-Archive `
             -Path "target/${{ matrix.target }}/release/phpantom_lsp.exe" `
             -DestinationPath "phpantom_lsp-${{ matrix.target }}$suffix.zip"
@@ -198,8 +198,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: phpantom_lsp-${{ matrix.target }}-${{ matrix.name || '' }}
-          path: phpantom_lsp-${{ matrix.target }}${{ matrix.name && format('-{0}', matrix.name) || '' }}.${{ matrix.archive }}
+          name: phpantom_lsp-${{ matrix.target }}-${{ matrix.suffix || '' }}
+          path: phpantom_lsp-${{ matrix.target }}${{ matrix.suffix && format('-{0}', matrix.suffix) || '' }}.${{ matrix.archive }}
 
   release:
     name: Create Release
