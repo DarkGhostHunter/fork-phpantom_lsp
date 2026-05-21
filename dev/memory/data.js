@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779321005319,
+  "lastUpdate": 1779322062887,
   "repoUrl": "https://github.com/DarkGhostHunter/fork-phpantom_lsp",
   "entries": {
     "PHPantom Memory Usage": [
@@ -101,6 +101,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory_laravel_model",
             "value": 49.8,
+            "unit": "MiB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "DarkGhostHunter@Gmail.com",
+            "name": "Italo",
+            "username": "DarkGhostHunter"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "31842831a59bd1de13265a1001e0140b464088f5",
+          "message": "Broadens Intel Mac support",
+          "timestamp": "2026-05-20T19:55:05-04:00",
+          "tree_id": "3d39ae7720264b10d6fe03c99c192046a010b91f",
+          "url": "https://github.com/DarkGhostHunter/fork-phpantom_lsp/commit/31842831a59bd1de13265a1001e0140b464088f5"
+        },
+        "date": 1779322062441,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "memory_hello_world",
+            "value": 32.7,
+            "unit": "MiB"
+          },
+          {
+            "name": "memory_laravel_model",
+            "value": 53.1,
             "unit": "MiB"
           }
         ]
